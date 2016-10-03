@@ -89,8 +89,7 @@ static size_t rioFileWrite(rio *r, const void *buf, size_t len) {
     retval = fwrite(buf,len,1,r->io.file.fp);
     r->io.file.buffered += len;
 
-    if (r->io.file.autosync &&
-        r->io.file.buffered >= r->io.file.autosync)
+    if (r->io.file.autosync && r->io.file.buffered >= r->io.file.autosync)
     {
     	//判读是否需要同步
         fflush(r->io.file.fp);

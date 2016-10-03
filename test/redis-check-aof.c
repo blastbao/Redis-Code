@@ -143,13 +143,16 @@ off_t process(FILE *fp) {
 
     while(1) {
     	//如果multi为初始值，进行文件定位
-        if (!multi) pos = ftello(fp);
+        if (!multi) 
+            pos = ftello(fp);
         //从文件中读取参数数值，参数值为字符串长度
-        if (!readArgc(fp, &argc)) break;
+        if (!readArgc(fp, &argc)) 
+            break;
 
 		//遍历文件中的逐个字符串
         for (i = 0; i < argc; i++) {
-            if (!readString(fp,&str)) break;
+            if (!readString(fp,&str)) 
+                break;
             if (i == 0) {
                 if (strcasecmp(str, "multi") == 0) {
                     if (multi++) {
@@ -188,6 +191,7 @@ int main(int argc, char **argv) {
     char *filename;
     int fix = 0;
 
+    // 选项，如果不带 --fix 就只检查，不进行修复
     if (argc < 2) {
         printf("Usage: %s [--fix] <file.aof>\n", argv[0]);
         exit(1);
@@ -205,31 +209,45 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    // 打开指定文件
     FILE *fp = fopen(filename,"r+");
     if (fp == NULL) {
         printf("Cannot open file: %s\n", filename);
         exit(1);
     }
 
+    // 读取文件信息
     struct redis_stat sb;
     if (redis_fstat(fileno(fp),&sb) == -1) {
         printf("Cannot stat file: %s\n", filename);
         exit(1);
     }
 
+    // 取出文件的大小
     off_t size = sb.st_size;
     if (size == 0) {
         printf("Empty file: %s\n", filename);
         exit(1);
     }
 
+    // 如果文件出错，那么这个偏移量指向：
+    // 1） 第一个不符合格式的位置
+    // 2） 第一个没有 EXEC 对应的 MULTI 的位置
+    // 如果文件没有出错，那么这个偏移量指向：
+    // 3） 文件末尾
     off_t pos = process(fp);
-    //diff为剩余的空间
+    // 计算偏移量距离文件末尾有多远
     off_t diff = size-pos;
     printf("AOF analyzed: size=%lld, ok_up_to=%lld, diff=%lld\n",
         (long long) size, (long long) pos, (long long) diff);
+
+    // 大于 0 表示未到达文件末尾，出错
     if (diff > 0) {
+
+        // fix 模式：尝试修复文件
         if (fix) {
+
+            // 尝试从出错的位置开始，一直删除到文件的末尾
             char buf[2];
             printf("This will shrink the AOF from %lld bytes, with %lld bytes, to %lld bytes\n",(long long)size,(long long)diff,(long long)pos);
             printf("Continue? [y/N]: ");
@@ -238,22 +256,28 @@ int main(int argc, char **argv) {
                     printf("Aborting...\n");
                     exit(1);
             }
-            
-            //截断文件的操作，从问价头部到后面的偏移量，没有用的空间截去
+
+            // 删除不正确的内容
             if (ftruncate(fileno(fp), pos) == -1) {
                 printf("Failed to truncate AOF\n");
                 exit(1);
             } else {
                 printf("Successfully truncated AOF\n");
             }
+
+        // 非 fix 模式：只报告文件不合法
         } else {
             printf("AOF is not valid\n");
             exit(1);
         }
+
+    // 等于 0 表示文件已经顺利读完，无错
     } else {
         printf("AOF is valid\n");
     }
 
+    // 关闭文件
     fclose(fp);
+
     return 0;
 }

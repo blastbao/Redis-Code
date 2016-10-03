@@ -471,7 +471,9 @@ int anetTcp6Server(char *err, int port, char *bindaddr, int backlog)
 {
     return _anetTcpServer(err, port, bindaddr, AF_INET6, backlog);
 }
-
+/*
+ * 创建一个本地连接用的服务器监听套接字
+ */
 int anetUnixServer(char *err, char *path, mode_t perm, int backlog)
 {
     int s;
@@ -508,7 +510,9 @@ static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *l
     }
     return fd;
 }
-
+/*
+ * TCP 连接 accept 函数
+ */
 int anetTcpAccept(char *err, int s, char *ip, size_t ip_len, int *port) {
     int fd;
     struct sockaddr_storage sa;
@@ -518,16 +522,22 @@ int anetTcpAccept(char *err, int s, char *ip, size_t ip_len, int *port) {
 
     if (sa.ss_family == AF_INET) {
         struct sockaddr_in *s = (struct sockaddr_in *)&sa;
-        if (ip) inet_ntop(AF_INET,(void*)&(s->sin_addr),ip,ip_len);
-        if (port) *port = ntohs(s->sin_port);
+        if (ip) 
+            inet_ntop(AF_INET,(void*)&(s->sin_addr),ip,ip_len);
+        if (port) 
+            *port = ntohs(s->sin_port);
     } else {
         struct sockaddr_in6 *s = (struct sockaddr_in6 *)&sa;
-        if (ip) inet_ntop(AF_INET6,(void*)&(s->sin6_addr),ip,ip_len);
-        if (port) *port = ntohs(s->sin6_port);
+        if (ip) 
+            inet_ntop(AF_INET6,(void*)&(s->sin6_addr),ip,ip_len);
+        if (port) 
+            *port = ntohs(s->sin6_port);
     }
     return fd;
 }
-
+/*
+ * 本地连接 accept 函数
+ */
 int anetUnixAccept(char *err, int s) {
     int fd;
     struct sockaddr_un sa;
@@ -537,7 +547,9 @@ int anetUnixAccept(char *err, int s) {
 
     return fd;
 }
-
+/*
+ * 获取连接客户端的 IP 和端口号
+ */
 int anetPeerToString(int fd, char *ip, size_t ip_len, int *port) {
     struct sockaddr_storage sa;
     socklen_t salen = sizeof(sa);
@@ -559,7 +571,9 @@ int anetPeerToString(int fd, char *ip, size_t ip_len, int *port) {
     }
     return 0;
 }
-
+/*
+ * 获取服务器本机的 IP 和端口号
+ */
 int anetSockName(int fd, char *ip, size_t ip_len, int *port) {
     struct sockaddr_storage sa;
     socklen_t salen = sizeof(sa);

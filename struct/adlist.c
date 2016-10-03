@@ -71,7 +71,8 @@ void listRelease(list *list)
     	//while循环依次释放结点
         next = current->next;
         //如果列表有free释放方法定义，每个结点都必须调用自己内部的value方法
-        if (list->free) list->free(current->value);
+        if (list->free) 
+            list->free(current->value);
         //采用redis新定义的在zfree方式释放结点，与zmalloc对应，不是free！！ 
         zfree(current);
         current = next;
@@ -193,7 +194,8 @@ void listDelNode(list *list, listNode *node)
     else
         list->tail = node->prev;
     //同样要调用list的free函数
-    if (list->free) list->free(node->value);
+    if (list->free) 
+        list->free(node->value);
     zfree(node);
     list->len--;
 }
@@ -207,7 +209,8 @@ listIter *listGetIterator(list *list, int direction)
 {
     listIter *iter;
 	//申请空间，失败了就直接返回NULL
-    if ((iter = zmalloc(sizeof(*iter))) == NULL) return NULL;
+    if ((iter = zmalloc(sizeof(*iter))) == NULL) 
+        return NULL;
     if (direction == AL_START_HEAD)
     	//如果方向定义的是从头开始，则迭代器的next指针指向列表头结点
         iter->next = list->head;
@@ -288,8 +291,8 @@ list *listDup(list *orig)
     if ((copy = listCreate()) == NULL)
         return NULL;
     //为新列表赋值好3个函数指针
-    copy->dup = orig->dup;
-    copy->free = orig->free;
+    copy->dup   = orig->dup;
+    copy->free  = orig->free;
     copy->match = orig->match;
     //获得从头方向开始的迭代器
     iter = listGetIterator(orig, AL_START_HEAD);

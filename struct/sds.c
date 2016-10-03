@@ -350,7 +350,8 @@ int sdsll2str(char *s, long long value) {
         v /= 10;
     } while(v);
     //后面别忘了正负号的添加
-    if (value < 0) *p++ = '-';
+    if (value < 0) 
+        *p++ = '-';
 
     /* Compute length and add null term. */
     l = p-s;
@@ -411,6 +412,14 @@ sds sdsfromlonglong(long long value) {
     return sdsnewlen(buf,len);
 }
 
+/*
+
+下面这个函数的实现很有意思，因为类printf操作，事先并不知道源串长度，因此
+采用了一种类似启发式的方法，从16bytes开始，按照倍数递增的方法来猜测长度，
+猜测长度时，是在倒数第二个字节处打了个标记（'\0'）,然后判断操作前后
+是否保持一致来判断是否空间够的。好好看看while循环，其实挺有意思的。
+
+*/
 /* Like sdscatpritf() but gets va_list instead of being variadic. */
 sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
     va_list cpy;
@@ -421,7 +430,8 @@ sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
      * If not possible we revert to heap allocation. */
     if (buflen > sizeof(staticbuf)) {
         buf = zmalloc(buflen);
-        if (buf == NULL) return NULL;
+        if (buf == NULL) 
+            return NULL;
     } else {
         buflen = sizeof(staticbuf);
     }
@@ -649,14 +659,18 @@ void sdsrange(sds s, int start, int end) {
     struct sdshdr *sh = (void*) (s-(sizeof(struct sdshdr)));
     size_t newlen, len = sdslen(s);
 
-    if (len == 0) return;
+    if (len == 0) 
+        return;
+
     if (start < 0) {
         start = len+start;
-        if (start < 0) start = 0;
+        if (start < 0) 
+            start = 0;
     }
     if (end < 0) {
         end = len+end;
-        if (end < 0) end = 0;
+        if (end < 0) 
+            end = 0;
     }
     newlen = (start > end) ? 0 : (end-start)+1;
     if (newlen != 0) {
@@ -669,8 +683,13 @@ void sdsrange(sds s, int start, int end) {
     } else {
         start = 0;
     }
-    if (start && newlen) memmove(sh->buf, sh->buf+start, newlen);
+    // 如果有需要，对字符串进行移动
+    // T = O(N)
+    if (start && newlen) 
+        memmove(sh->buf, sh->buf+start, newlen);
+    // 添加终结符
     sh->buf[newlen] = 0;
+    // 更新属性
     sh->free = sh->free+(sh->len-newlen);
     sh->len = newlen;
 }
@@ -733,12 +752,14 @@ sds *sdssplitlen(const char *s, int len, const char *sep, int seplen, int *count
     int elements = 0, slots = 5, start = 0, j;
     sds *tokens;
 
-    if (seplen < 1 || len < 0) return NULL;
+    if (seplen < 1 || len < 0) 
+        return NULL;
 	
 	//分割的子字符串初始值只有5组
     tokens = zmalloc(sizeof(sds)*slots);
     //如果内存溢出，直接返回NULL值
-    if (tokens == NULL) return NULL;
+    if (tokens == NULL) 
+        return NULL;
 
     if (len == 0) {
         *count = 0;
@@ -781,7 +802,8 @@ cleanup:
     {
     	//清除空间
         int i;
-        for (i = 0; i < elements; i++) sdsfree(tokens[i]);
+        for (i = 0; i < elements; i++) 
+            sdsfree(tokens[i]);
         zfree(tokens);
         *count = 0;
         return NULL;
@@ -830,8 +852,7 @@ sds sdscatrepr(sds s, const char *p, size_t len) {
 /* Helper function for sdssplitargs() that returns non zero if 'c'
  * is a valid hex digit. */
 int is_hex_digit(char c) {
-    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-           (c >= 'A' && c <= 'F');
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 /* Helper function for sdssplitargs() that converts a hex digit into an
@@ -1020,7 +1041,8 @@ sds sdsjoin(char **argv, int argc, char *sep) {
 
     for (j = 0; j < argc; j++) {
         join = sdscat(join, argv[j]);
-        if (j != argc-1) join = sdscat(join,sep);
+        if (j != argc-1) 
+            join = sdscat(join,sep);
     }
     return join;
 }

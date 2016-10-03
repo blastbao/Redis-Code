@@ -64,10 +64,10 @@
 #include "redis.h"
 #include "bio.h"
 
-static pthread_t bio_threads[REDIS_BIO_NUM_OPS]; /* 定义了bio线程组变量 */
-static pthread_mutex_t bio_mutex[REDIS_BIO_NUM_OPS]; /* 线程相对应的mutex变量，用于同步操作 */
+static pthread_t bio_threads[REDIS_BIO_NUM_OPS];        /* 定义了bio线程组变量 */
+static pthread_mutex_t bio_mutex[REDIS_BIO_NUM_OPS];    /* 线程相对应的mutex变量，用于同步操作 */
 static pthread_cond_t bio_condvar[REDIS_BIO_NUM_OPS];
-static list *bio_jobs[REDIS_BIO_NUM_OPS]; /* 每种job类型都是一个列表 */
+static list *bio_jobs[REDIS_BIO_NUM_OPS];               /* 每种job类型都是一个列表 */
 /* The following array is used to hold the number of pending jobs for every
  * OP type. This allows us to export the bioPendingJobsOfType() API that is
  * useful when the main thread wants to perform some operation that may involve
