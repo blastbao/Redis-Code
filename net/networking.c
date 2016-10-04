@@ -1307,6 +1307,15 @@ foo
 $3  
 bar  
 这个命令的实际协议值如下："*3\r\n$3\r\nSET\r\n$3\r\foo\r\n$3\r\bar\r\n"  
+
+
+那么下面的代码就非常好理解了：
+    首先解析'*'后面的字符串转成long long类型，这样就知道了参数的个数。
+    接着遍历参数个数解析$后面的数字为参数的长度，并且读取参数。
+    最后，类似processInlineBuffer，将参数存入到了client的argv数组中。
+
+经过以上几个步骤，querybuf中的数据算是解析完了。
+最后，外部的processInputBuffer函数将会调用processCommand函数来处理解析完毕的命令行参数。
 */
 int processMultibulkBuffer(redisClient *c) {
     char *newline = NULL;
@@ -1341,9 +1350,11 @@ int processMultibulkBuffer(redisClient *c) {
 
         // 协议的第一个字符必须是 '*'
         redisAssertWithInfo(c,NULL,c->querybuf[0] == '*');
+
+
         // 将参数个数，也即是 * 之后， \r\n 之前的数字取出并保存到 ll 中
         // 比如对于 *3\r\n ，那么 ll 将等于 3
-        ok = string2ll(c->querybuf+1,newline-(c->querybuf+1),&ll);
+        ok = string2ll(c->querybuf+1,newline - (c->querybuf+1),&ll);
         // 参数的数量超出限制
         if (!ok || ll > 1024*1024) {
             addReplyError(c,"Protocol error: invalid multibulk length");
@@ -1356,7 +1367,7 @@ int processMultibulkBuffer(redisClient *c) {
         //                ^
         //                |
         //               pos
-        pos = (newline-c->querybuf)+2;
+        pos = (newline - c->querybuf)+2;
         // 如果 ll <= 0 ，那么这个命令是一个空白命令
         // 那么将这段内容从查询缓冲区中删除，只保留未阅读的那部分内容
         // 为什么参数可以是空的呢？
@@ -1378,14 +1389,19 @@ int processMultibulkBuffer(redisClient *c) {
     }
 
     redisAssertWithInfo(c,NULL,c->multibulklen > 0);
+
+    // 从 c->querybuf 中读入参数，并创建各个参数对象到 c->argv
     while(c->multibulklen) {
+
         /* Read bulk length if unknown */
+        // 读入参数长度
         if (c->bulklen == -1) {
+
+            // 确保 "\r\n" 存在
             newline = strchr(c->querybuf+pos,'\r');
             if (newline == NULL) {
                 if (sdslen(c->querybuf) > REDIS_INLINE_MAX_SIZE) {
-                    addReplyError(c,
-                        "Protocol error: too big bulk count string");
+                    addReplyError(c,"Protocol error: too big bulk count string");
                     //设置协议错误
                     setProtocolError(c,0);
                     return REDIS_ERR;
@@ -1397,14 +1413,16 @@ int processMultibulkBuffer(redisClient *c) {
             if (newline-(c->querybuf) > ((signed)sdslen(c->querybuf)-2))
                 break;
 
+            // 确保协议符合参数格式，检查其中的 $...
+            // 比如 $3\r\nSET\r\n
             if (c->querybuf[pos] != '$') {
-                addReplyErrorFormat(c,
-                    "Protocol error: expected '$', got '%c'",
-                    c->querybuf[pos]);
+                addReplyErrorFormat(c,"Protocol error: expected '$', got '%c'",c->querybuf[pos]);
                 setProtocolError(c,pos);
                 return REDIS_ERR;
             }
 
+            // 读取长度
+            // 比如 $3\r\nSET\r\n 将会让 ll 的值设置 3
             ok = string2ll(c->querybuf+pos+1,newline-(c->querybuf+pos+1),&ll);
             if (!ok || ll < 0 || ll > 512*1024*1024) {
                 addReplyError(c,"Protocol error: invalid bulk length");
@@ -1412,7 +1430,16 @@ int processMultibulkBuffer(redisClient *c) {
                 return REDIS_ERR;
             }
 
+
+            // 定位到参数的开头
+            // 比如 
+            // $3\r\nSET\r\n...
+            //       ^
+            //       |
+            //      pos
             pos += newline-(c->querybuf+pos)+2;
+
+            // 如果参数非常长，那么做一些预备措施来优化接下来的参数复制操作
             if (ll >= REDIS_MBULK_BIG_ARG) {
                 size_t qblen;
 
@@ -1428,20 +1455,27 @@ int processMultibulkBuffer(redisClient *c) {
                 if (qblen < (size_t)ll+2)
                     c->querybuf = sdsMakeRoomFor(c->querybuf,ll+2-qblen);
             }
+
+            // 参数的长度
             c->bulklen = ll;
         }
 
         /* Read bulk argument */
+        // 读入参数
         if (sdslen(c->querybuf)-pos < (unsigned)(c->bulklen+2)) {
+
+            /* Not enough data (+2 == trailing \r\n) */
+            // 确保内容符合协议格式
+            // 比如 $3\r\nSET\r\n 就检查 SET 之后的 \r\n
             /* Not enough data (+2 == trailing \r\n) */
             break;
         } else {
             /* Optimization: if the buffer contains JUST our bulk element
              * instead of creating a new object by *copying* the sds we
              * just use the current sds string. */
-            if (pos == 0 &&
-                c->bulklen >= REDIS_MBULK_BIG_ARG &&
-                (signed) sdslen(c->querybuf) == c->bulklen+2)
+            
+            // 为参数创建字符串对象  
+            if (pos == 0 && c->bulklen >= REDIS_MBULK_BIG_ARG && (signed) sdslen(c->querybuf) == c->bulklen+2)
             {
                 c->argv[c->argc++] = createObject(REDIS_STRING,c->querybuf);
                 sdsIncrLen(c->querybuf,-2); /* remove CRLF */
@@ -1451,22 +1485,29 @@ int processMultibulkBuffer(redisClient *c) {
                 c->querybuf = sdsMakeRoomFor(c->querybuf,c->bulklen+2);
                 pos = 0;
             } else {
-                c->argv[c->argc++] =
-                    createStringObject(c->querybuf+pos,c->bulklen);
+                c->argv[c->argc++] = createStringObject(c->querybuf+pos,c->bulklen);
                 pos += c->bulklen+2;
             }
+
+            // 清空参数长度
             c->bulklen = -1;
+            // 减少还需读入的参数个数
             c->multibulklen--;
         }
     }
 
     /* Trim to pos */
-    if (pos) sdsrange(c->querybuf,pos,-1);
+    // 从 querybuf 中删除已被读取的内容
+    if (pos) 
+        sdsrange(c->querybuf,pos,-1);
 
     /* We're done when c->multibulk == 0 */
-    if (c->multibulklen == 0) return REDIS_OK;
+    // 如果本条命令的所有参数都已读取完，那么返回
+    if (c->multibulklen == 0) 
+        return REDIS_OK;
 
     /* Still not read to process the command */
+    // 如果还有参数未读取完，那么就协议内容有错
     return REDIS_ERR;
 }
 
@@ -1541,7 +1582,7 @@ void processInputBuffer(redisClient *c) {
         } else {
             /* Only reset the client when the command was executed. */
             //当上述两个函数返回REDIS_OK且c->argc!=0，即表示已经解析出一个命令，
-            //接下来调用processCommand函数进行命令处理，执行结束重置客户端。
+            //接下来调用processCommand函数进行命令处理，执行结束重置客户端，记录precmd、释放参数列表等。
             if (processCommand(c) == REDIS_OK)
                 resetClient(c);
         }
