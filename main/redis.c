@@ -2123,8 +2123,8 @@ void initServer() {
     }
 
     // 创建 PUBSUB 相关结构
-    server.pubsub_channels = dictCreate(&keylistDictType,NULL);
-    server.pubsub_patterns = listCreate();
+    server.pubsub_channels = dictCreate(&keylistDictType,NULL); /* 映射频道和订阅频道的客户端链表 */
+    server.pubsub_patterns = listCreate();                      /* 订阅模式列表，为pubsubPattern结构 */
     listSetFreeMethod(server.pubsub_patterns,freePubsubPattern);
     listSetMatchMethod(server.pubsub_patterns,listMatchPubsubPattern);
 

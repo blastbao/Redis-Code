@@ -2077,9 +2077,12 @@ int getClientType(redisClient *c) {
 
 /* Client中的名字的3种类型，normal,slave，pubsub */
 int getClientTypeByName(char *name) {
-    if (!strcasecmp(name,"normal")) return REDIS_CLIENT_TYPE_NORMAL;
-    else if (!strcasecmp(name,"slave")) return REDIS_CLIENT_TYPE_SLAVE;
-    else if (!strcasecmp(name,"pubsub")) return REDIS_CLIENT_TYPE_PUBSUB;
+    if (!strcasecmp(name,"normal")) 
+        return REDIS_CLIENT_TYPE_NORMAL;
+    else if (!strcasecmp(name,"slave")) 
+        return REDIS_CLIENT_TYPE_SLAVE;
+    else if (!strcasecmp(name,"pubsub")) 
+        return REDIS_CLIENT_TYPE_PUBSUB;
     else return -1;
 }
 
@@ -2198,9 +2201,7 @@ void flushSlavesOutputBuffers(void) {
         int events;
 
         events = aeGetFileEvents(server.el,slave->fd);
-        if (events & AE_WRITABLE &&
-            slave->replstate == REDIS_REPL_ONLINE &&
-            listLength(slave->reply))
+        if (events & AE_WRITABLE && slave->replstate == REDIS_REPL_ONLINE && listLength(slave->reply))
         {
         	//在这里调用了write的方法
             sendReplyToClient(server.el,slave->fd,slave,0);
